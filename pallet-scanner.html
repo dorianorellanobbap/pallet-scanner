@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B&B Pallet Spec Scanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #111;
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .logo {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 32px;
+    color: #fff;
+  }
+  .card {
+    background: #1c1c1c;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    padding: 28px;
+    width: 100%;
+    max-width: 420px;
+  }
+  #scanner-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    display: none;
+  }
+  #scanner-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  #scanner-container canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .scan-line {
+    position: absolute;
+    left: 10%; right: 10%;
+    height: 2px;
+    background: rgba(255, 80, 80, 0.8);
+    top: 50%;
+    animation: scanpulse 1.5s ease-in-out infinite;
+    z-index: 10;
+  }
+  @keyframes scanpulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn:active { opacity: 0.8; }
+  .btn-primary {
+    background: #e63a3a;
+    color: #fff;
+  }
+  .btn-secondary {
+    background: #2a2a2a;
+    color: #ccc;
+    margin-top: 10px;
+  }
+  #result-area {
+    display: none;
+    margin-top: 20px;
+  }
+  .sku-label {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .sku-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 16px;
+    word-break: break-all;
+  }
+  .open-btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: #e63a3a;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 10px;
+    text-align: center;
+    text-decoration: none;
+    margin-bottom: 10px;
+  }
+  #status {
+    font-size: 13px;
+    color: #888;
+    text-align: center;
+    margin-top: 12px;
+    min-height: 20px;
+  }
+  #manual-area {
+    margin-top: 20px;
+    border-top: 1px solid #2a2a2a;
+    padding-top: 20px;
+  }
+  .manual-label {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  .manual-row {
+    display: flex;
+    gap: 8px;
+  }
+  input[type="text"] {
+    flex: 1;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+  }
+  input[type="text"]:focus {
+    border-color: #e63a3a;
+  }
+  .btn-go {
+    padding: 10px 16px;
+    background: #e63a3a;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="logo">B&B Albany Pallet Co.</div>
+<h1>Spec Sheet Scanner</h1>
+
+<div class="card">
+  <div id="scanner-container">
+    <div class="scan-line"></div>
+  </div>
+
+  <button class="btn btn-primary" id="start-btn" onclick="startScanner()">Scan Barcode</button>
+  <button class="btn btn-secondary" id="stop-btn" onclick="stopScanner()" style="display:none;">Stop Camera</button>
+
+  <div id="result-area">
+    <div class="sku-label">SKU detected</div>
+    <div class="sku-value" id="sku-display"></div>
+    <a href="#" id="open-link" class="open-btn" target="_blank">Open Production Sheet</a>
+    <button class="btn btn-secondary" onclick="resetScanner()">Scan Another</button>
+  </div>
+
+  <div id="status"></div>
+
+  <div id="manual-area">
+    <div class="manual-label">Or enter SKU manually</div>
+    <div class="manual-row">
+      <input type="text" id="manual-input" placeholder="e.g. LAT-FL-4231" />
+      <button class="btn-go" onclick="openManual()">Open</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE_URL = "https://bbpallet.sharepoint.com/sites/BBAlbanyPalletCo2/PDS%20Designs/5.%20Production%20Sheets/";
+let scanning = false;
+let lastResult = null;
+
+function getSpecURL(sku) {
+  return BASE_URL + encodeURIComponent(sku) + ".pdf";
+}
+
+function showResult(sku) {
+  scanning = false;
+  document.getElementById('scanner-container').style.display = 'none';
+  document.getElementById('start-btn').style.display = 'none';
+  document.getElementById('stop-btn').style.display = 'none';
+  document.getElementById('result-area').style.display = 'block';
+  document.getElementById('sku-display').textContent = sku;
+  document.getElementById('open-link').href = getSpecURL(sku);
+  document.getElementById('status').textContent = '';
+  Quagga.stop();
+}
+
+function startScanner() {
+  document.getElementById('scanner-container').style.display = 'block';
+  document.getElementById('start-btn').style.display = 'none';
+  document.getElementById('stop-btn').style.display = 'block';
+  document.getElementById('result-area').style.display = 'none';
+  document.getElementById('status').textContent = 'Point camera at barcode...';
+  lastResult = null;
+  scanning = true;
+
+  Quagga.init({
+    inputStream: {
+      name: "Live",
+      type: "LiveStream",
+      target: document.getElementById('scanner-container'),
+      constraints: {
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    },
+    decoder: {
+      readers: ["code_128_reader", "code_39_reader"]
+    },
+    locate: true
+  }, function(err) {
+    if (err) {
+      document.getElementById('status').textContent = 'Camera error: ' + err.message;
+      stopScanner();
+      return;
+    }
+    Quagga.start();
+  });
+
+  Quagga.onDetected(function(result) {
+    if (!scanning) return;
+    const code = result.codeResult.code;
+    if (code && code !== lastResult) {
+      lastResult = code;
+      showResult(code);
+    }
+  });
+}
+
+function stopScanner() {
+  scanning = false;
+  Quagga.stop();
+  document.getElementById('scanner-container').style.display = 'none';
+  document.getElementById('start-btn').style.display = 'block';
+  document.getElementById('stop-btn').style.display = 'none';
+  document.getElementById('status').textContent = '';
+}
+
+function resetScanner() {
+  document.getElementById('result-area').style.display = 'none';
+  document.getElementById('start-btn').style.display = 'block';
+  document.getElementById('status').textContent = '';
+}
+
+function openManual() {
+  const sku = document.getElementById('manual-input').value.trim();
+  if (!sku) return;
+  window.open(getSpecURL(sku), '_blank');
+}
+
+document.getElementById('manual-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') openManual();
+});
+</script>
+</body>
+</html>
